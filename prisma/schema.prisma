@@ -1,0 +1,84 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  // makes ids String of type uuid (a formatted string; universally unique identifier) 
+  id String @id @default(uuid())
+
+  // defaults to the time a user is created
+  createdAt DateTime @default(now())
+
+  // datetime when user profile is updated
+  updatedAt DateTime @updatedAt
+
+  email     String
+  firstName String
+  lastName  String
+  password  String
+  projects  Project[]
+  tasks     Task[]
+}
+
+model Project {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name String
+
+  // ensures it's associated with a User
+  ownerId String
+
+  // establishes the relationship to a user; relation to ownerId that maps to the reference on the User's id
+  // must have the other side of the relationship established in the User model; shortcut: run 'npx prisma format'
+  owner User @relation(fields: [ownerId], references: [id])
+
+  description String?
+  due         DateTime?
+  tasks       Task[]
+
+  // soft delete: won't get deleted from the database; gets flagged to filter out of queries
+  deleted Boolean @default(false)
+
+  // tells Prisma we want to create a unique constraint on a complex field; a project owned by one owner cannot have the same name
+  @@unique([ownerId, name])
+  // tells Prisma to set aside an index; probably will write a query for this => 'I need to find a project that belongs to this owner, but has this id; will scan the entire project's table to look for the project instead
+  @@index([ownerId, id])
+}
+
+enum TASK_STATUS {
+  NOT_STARTED
+  STARTED
+  COMPLETED
+}
+
+model Task {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // owner relationship needed so we can query it based by user vs. the project and user? 
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id])
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+
+  status TASK_STATUS @default(NOT_STARTED)
+  name   String
+
+  due     DateTime?
+  deleted Boolean   @default(false)
+
+  @@unique([ownerId, name])
+  @@index([ownerId, id])
+}
